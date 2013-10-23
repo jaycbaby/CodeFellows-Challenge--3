@@ -10,67 +10,89 @@
     <script src="http://ajax.cdnjs.com/ajax/libs/underscore.js/1.1.6/underscore-min.js"></script>
     <script src="http://ajax.cdnjs.com/ajax/libs/backbone.js/0.3.3/backbone-min.js"></script>
 
+    <!--this script will refer to different Javascript file. Using alternate method to inject JS code into a script tag.-->
     <!--<script src="...backboneTut.js..." type="text/javascript"></script>-->
 <script>
+//usually document.ready, but holding all JS code into one piece.
 (function($){
+    //global variable: storing int as a value. read about scope.  
+    //standard default value is -1. making it invalid.  
     var editingId = -1;
     
+    //sets up backbone framework. overrides persistence storage with dummy function. avoids error. 
     Backbone.sync = function(method, model, success, error){
         success();
     }
     
+    //defining class. item holds default data members. 
+    //extend is syntax
     var Item = Backbone.Model.extend({
         defaults: {
             fname: '',
             lname: '',
-            email: 'n/a',
+            email: '',
             id: ''
         }
     });
     
+    //defining collection. list holds collection of item models 
     var List = Backbone.Collection.extend({
         model: Item
     });
     
+    //displays "edit and remove"
     var ItemView = Backbone.View.extend({
         tagName: 'li', // name of (orphan) root tag in this.el
         
+        //gives extra backbone functionality to list items  
         events: {
             'click span.edits':  'edit',
             'click span.delete': 'remove'
         },    
         
+        //just setting up 
         initialize: function(){
             _.bindAll(this, 'render', 'unrender', 'edit', 'remove'); // every function that uses 'this' as the current object should be in here
             
+            //defining what happens when you 
             this.model.bind('change', this.render);
             this.model.bind('remove', this.unrender);
         },
+        //injects HTML into page so item is visible
         render: function(){
+            //applying span tag to modify CSS for specific element
             $(this.el).html('<span style="color:black;" id="'+this.model.get('id')+'">'+this.model.get('fname')+' '+this.model.get('lname')+', '+this.model.get('email')+'</span> &nbsp; &nbsp; <span class="edits" style="font-family:sans-serif; color:blue; cursor:pointer;">[edit]</span> <span class="delete" style="cursor:pointer; color:red; font-family:sans-serif;">[delete]</span>');
       return this; // for chainable calls, like .render().el
         },
+        //removes HTML from page
         unrender: function(){
             $(this.el).remove();
         },
+        //handles edit click event
         edit: function(){
+            //stores ID of item that has been clicked
             var id = this.model.get('id');
+            //taking values from itemview and injecting into textbox. making text boxes visible.
             $( ".edit" ).show();
             
             $( "#"+id ).css("background-color", "pink");
             $( "#fnameEdit" ).val(this.model.get('fname'));
             $( "#lnameEdit" ).val(this.model.get('lname'));
             $( "#emailEdit" ).val(this.model.get('email'));
+            //storing global variable of ID of item being edited
             editingId = this.model.get('id');
             
         },
+        //deleting current backbone model
         remove: function(){
             this.model.destroy();
         }
     });
     
+    //holds all text together on page. View holds all functionality.
     var ListView = Backbone.View.extend({
-        el: $('body'), // attaches `this.el` to an existing element.
+        el: $('body'), // attaches `this.el` to an existing body element.
+
 
         events: {
             'click button#add': 'addItem',
@@ -78,11 +100,15 @@
         },
         initialize: function(){
             _.bindAll(this, 'render', 'addItem', 'appendItem'); // fixes loss of context for 'this' within methods
-    
+            
+            //Collection holds the data (items/models) of the list. 
             this.collection = new List();
+            // appendItem does visual update after add event is called.
             this.collection.bind('add', this.appendItem); // collection event binder
             
+            //setting data member of list view. 
             this.counter = 0;
+            //caling render function 
             this.render(); // not all views are self-rendering. This one is.
         },
         
@@ -95,34 +121,46 @@
             $(this.el).append("<button id='add'>Add user</button>");
             $(this.el).append("<ul></ul>");
             
+            //wrapping all edit elements in "div" so that we can treat them all as one element
             $(this.el).append('<div class="edit" style="position:fixed;top:150px;left:400px;">');
             $( ".edit" ).append('First name: <input type="text" name="fname" id="fnameEdit"><br>');
             $( ".edit" ).append('Last name: <input type="text" name="lname" id="lnameEdit"><br>');
             $( ".edit" ).append('E-Mail: <input type="text" name="email" id="emailEdit"><br>');
             $( ".edit" ).append("<button id='save'>Save Changes</button>");
             
-            
+            //calling on div (our one element)
             $( ".edit" ).hide();
+            //looping through all items to show everything that is being held by collection. 
             _(this.collection.models).each(function(item){ // in case collection is not empty
+                //reappending to UL (HTML) to redisplay everything in collection.
                 self.appendItem(item);
             }, this);
         },
         
+        //handles add user click event. 
         addItem: function(){
-            this.counter++;
+            //incrementing datamember of list view
+            this.counter++; 
+            //creating new variable item
             var item = new Item();
+            //sets data members. 
             item.set({
                 fname: $( "#fname" ).val(),
                 lname: $( "#lname" ).val(),
                 email: $( "#email" ).val(),
+                //using counter as a reference to ensure unique ID#s.
                 id: this.counter // modify item defaults
             });
-            this.collection.add(item); // add item to collection; view is updated via event 'add'
+            // add item to collection; view is updated via event 'add'
+            this.collection.add(item); 
         },
         
         editItem: function() {
+            //
             this.collection.each( function(model) {
+                //Finding ID# that matches editingId (global variable)
                 if(model.get('id') == editingId){
+                    //changing value 
                     model.set({
                         fname: $( "#fnameEdit" ).val(),
                         lname: $( "#lnameEdit" ).val(),
@@ -130,19 +168,24 @@
                     });
                 }
             });
+            //turning edit button from pink to white
             $( "#"+editingId ).css("background-color", "white");
+            //setting it back to default -1
             editingId = -1;
+            //hiding text fields
             $( ".edit" ).hide();
         },
         
+        //creating item view so you can see changes to item 
         appendItem: function(item){
             var itemView = new ItemView({
                 model: item
             });
+            //appending to UL
             $('ul', this.el).append(itemView.render().el);
         }
     });
-
+    //creates new listview
     var listView = new ListView();
 })(jQuery);
 </script>
